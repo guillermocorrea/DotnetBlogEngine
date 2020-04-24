@@ -1,0 +1,97 @@
+﻿@model IEnumerable<Domain.Post>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Blog Posts</h1>
+
+@if (User.Identity.IsAuthenticated)
+{
+    <p>
+        <a asp-action="Create">Create New</a>
+    </p>
+}
+
+@if (User.IsInRole(Domain.Roles.Editor))
+{
+    <p>
+        <a href="/posts?status=Pending">Show Pending</a> | <a asp-action="Index">Show all</a>
+    </p>
+}
+
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Title)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Body)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Status)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.User)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.PublishDate)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Title)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Body)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Status)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.User.Name)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.PublishDate)
+                </td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-link">Details</a>
+                    @if (
+                 (item.Status == Domain.Post.PostStatus.Draft ||
+                 item.Status == Domain.Post.PostStatus.Rejected) &&
+                 User.Identity.IsAuthenticated)
+                    {
+                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-link">Edit</a>
+                        <form asp-action="SubmitPost" asp-route-id="@item.Id">
+                            <input type="submit" value="Submit" class="btn btn-link" />
+                        </form>
+                    }
+
+                    @if (User.IsInRole(Domain.Roles.Editor))
+                    {
+                        if (item.Status == Domain.Post.PostStatus.Pending)
+                        {
+                            <form asp-action="ApprovePost" asp-route-id="@item.Id">
+                                <input type="hidden" name="status" value="@Domain.Post.PostStatus.Approved" />
+                                <input type="submit" value="Approve" class="btn btn-link" />
+                            </form>
+                            <form asp-action="RejectPost" asp-route-id="@item.Id">
+                                <input type="hidden" name="status" value="@Domain.Post.PostStatus.Rejected" />
+                                <input type="submit" value="Reject" class="btn btn-link" />
+                            </form>
+                        }
+                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-danger">Delete</a>
+                    }
+
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
