@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using Application.Repositories;
+﻿using Application.Repositories;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using WebUI.Models;
 
 namespace WebUI.Controllers
@@ -56,7 +54,7 @@ namespace WebUI.Controllers
             var claimsIdentity = new ClaimsIdentity(claims, "CookieAuth");
             var userPrincipal = new ClaimsPrincipal(new[] { claimsIdentity });
             await HttpContext.SignInAsync(userPrincipal);
-            
+
             return RedirectToAction("Index", "Home");
         }
 

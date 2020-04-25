@@ -1,4 +1,4 @@
-﻿@model Domain.Post
+﻿@model Application.Common.Models.PostDto
 
 @{
     ViewData["Title"] = "Delete";
@@ -30,10 +30,10 @@
             @Html.DisplayFor(model => model.Status)
         </dd>
         <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.User)
+            @Html.DisplayNameFor(model => model.Author)
         </dt>
         <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.User.Name)
+            @Html.DisplayFor(model => model.Author)
         </dd class>
         <dt class = "col-sm-2">
             @Html.DisplayNameFor(model => model.PublishDate)

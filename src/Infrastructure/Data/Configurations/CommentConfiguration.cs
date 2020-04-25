@@ -2,8 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Infrastructure.Data.Configurations
 {
@@ -14,6 +12,19 @@ namespace Infrastructure.Data.Configurations
             builder.Property(c => c.Content)
                 .HasMaxLength(255)
                 .IsRequired();
+        }
+
+        public static void SeedData(EntityTypeBuilder<Comment> builder)
+        {
+            builder.HasData(
+               new Comment
+               {
+                   Id = 1,
+                   Content = "Great post!",
+                   CreationDate = DateTime.Now,
+                   Username = "Anonymous",
+                   PostId = 4
+               });
         }
     }
 }

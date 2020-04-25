@@ -1,49 +1,39 @@
-﻿using System;
+﻿using Application.Comments.Commands.CreateComment;
+using Application.Common.Models;
+using Application.Posts.Commands.CreatePost;
+using Application.Posts.Commands.DeletePost;
+using Application.Posts.Commands.UpdatePost;
+using Application.Posts.Queries.GetAllPostsByStatus;
+using Application.Posts.Queries.GetPostDetails;
+using Domain;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using Domain;
-using Infrastructure.Data;
-using Application.Repositories;
-using static Domain.Post;
-using Microsoft.AspNetCore.Authorization;
 using WebUI.Models;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
+using static Domain.Post;
 
 namespace WebUI.Controllers
 {
     public class PostsController : Controller
     {
-        private readonly IPostsRepository _postsRepository;
-        private readonly ICommentsRepository _commentsRepository;
+        private readonly IMediator _mediator;
 
-        public PostsController(IPostsRepository postsRepository, ICommentsRepository commentsRepository)
+        public PostsController(IMediator mediator)
         {
-            _postsRepository = postsRepository;
-            _commentsRepository = commentsRepository;
+            _mediator = mediator;
         }
 
         // GET: Posts
         public async Task<IActionResult> Index(string status)
         {
-            var statusFilter = new List<PostStatus> { PostStatus.Approved };
-            if (User.Identity.IsAuthenticated)
-            {
-                statusFilter.Add(PostStatus.Draft);
-                statusFilter.Add(PostStatus.Rejected);
-                statusFilter.Add(PostStatus.Pending);
-            }
-            if (!string.IsNullOrWhiteSpace(status) &&
-                User.IsInRole(Roles.Editor) &&
-                Enum.TryParse(status, out PostStatus postStatus))
-            {
-                statusFilter = new List<PostStatus> { postStatus };
-            }
-            return View(await _postsRepository.GetByStatusAsync(statusFilter.ToArray()));
+            var query = new GetAllPostsByStatusQuery { Status = status };
+            var result = await _mediator.Send(query);
+            return View(result);
         }
 
         // GET: Posts/Details/5
@@ -54,41 +44,25 @@ namespace WebUI.Controllers
                 return NotFound();
             }
 
-            var post = await _postsRepository.GetAsync(id.Value);
-            if (post == null)
-            {
-                return NotFound();
-            }
-
-            return View(new PostDetailsViewModel
+            var query = new GetPostDetailsQuery { PostId = id.Value };
+            var post = await _mediator.Send(query);
+            return post == null ? NotFound() : (IActionResult)View(new PostDetailsViewModel
             {
                 Post = post,
-                NewComment = new NewCommentViewModel()
+                NewComment = new CreateCommentDto()
             });
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateComment(NewCommentViewModel newComment)
+        public async Task<IActionResult> CreateComment(CreateCommentDto newComment)
         {
             if (!ModelState.IsValid)
             {
                 return RedirectToAction(nameof(Details), new { id = newComment.PostId });
             }
-            string username = newComment.Username;
-            int? userId = null;
-            if (User.Identity.IsAuthenticated)
-            {
-                username = User.FindFirst(ClaimTypes.Name).Value;
-                userId = int.Parse(User.FindFirst("id").Value);
-            }
-            var comment = new Comment
-            {
-                PostId = newComment.PostId,
-                Content = newComment.Content,
-                Username = username,
-                UserId = userId
-            };
-            await _commentsRepository.CreateAsync(comment);
+
+            var query = new CreateCommentCommand { NewComment = newComment };
+            await _mediator.Send(query);
             return RedirectToAction(nameof(Details), new { id = newComment.PostId });
         }
 
@@ -103,17 +77,45 @@ namespace WebUI.Controllers
         [Authorize(Roles = Roles.Writer)]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Title,Body,Status,UserId,PublishDate")] Post post)
+        public async Task<IActionResult> Create([Bind("Id,Title,Body,Status,UserId")] PostDto post)
         {
             if (ModelState.IsValid)
             {
-                await _postsRepository.CreateAsync(post);
+                await _mediator.Send(new CreatePostCommand { Post = post });
                 return RedirectToAction(nameof(Index));
             }
             return View(post);
         }
 
+        [Authorize(Roles = "Editor,Writer")]
+        [HttpPost]
+        public async Task<IActionResult> SubmitPost(int id)
+        {
+            var command = new SubmitPostCommand { PostId = id };
+            await _mediator.Send(command);
+            return RedirectToAction(nameof(Index));
+        }
+
+        [Authorize(Roles = "Editor")]
+        [HttpPost]
+        public async Task<IActionResult> ApprovePost(int id)
+        {
+            var command = new ApprovePostCommand { PostId = id };
+            await _mediator.Send(command);
+            return RedirectToAction(nameof(Index));
+        }
+
+        [Authorize(Roles = "Editor")]
+        [HttpPost]
+        public async Task<IActionResult> RejectPost(int id)
+        {
+            var command = new RejectPostCommand { PostId = id };
+            await _mediator.Send(command);
+            return RedirectToAction(nameof(Index));
+        }
+
         // GET: Posts/Edit/5
+        [Authorize]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -121,13 +123,14 @@ namespace WebUI.Controllers
                 return NotFound();
             }
 
-            var post = await _postsRepository.GetAsync(id.Value);
+            var query = new GetPostDetailsQuery { PostId = id.Value };
+            var post = await _mediator.Send(query);
             if (post == null)
             {
                 return NotFound();
             }
 
-            if (post.Status == PostStatus.Approved)
+            if (post.Status == PostStatus.Approved || post.Status == PostStatus.Pending)
             {
                 return RedirectToAction(nameof(Index));
             }
@@ -136,59 +139,11 @@ namespace WebUI.Controllers
             return View(post);
         }
 
-        [Authorize(Roles = "Editor,Writer")]
-        [HttpPost]
-        public async Task<IActionResult> SubmitPost(int id)
-        {
-            var post = await _postsRepository.GetAsync(id);
-            if (post == null)
-            {
-                return NotFound();
-            }
-
-            post.Status = PostStatus.Pending;
-            await _postsRepository.UpdateAsync(id, post);
-            return RedirectToAction(nameof(Index));
-        }
-
-        [Authorize(Roles = "Editor")]
-        [HttpPost]
-        public async Task<IActionResult> ApprovePost(int id)
-        {
-            var post = await _postsRepository.GetAsync(id);
-            if (post == null)
-            {
-                return NotFound();
-            }
-
-            post.Status = PostStatus.Approved;
-            post.PublishDate = DateTime.Now;
-
-            await _postsRepository.UpdateAsync(id, post);
-            return RedirectToAction(nameof(Index));
-        }
-
-        [Authorize(Roles = "Editor")]
-        [HttpPost]
-        public async Task<IActionResult> RejectPost(int id)
-        {
-            var post = await _postsRepository.GetAsync(id);
-            if (post == null)
-            {
-                return NotFound();
-            }
-
-            post.Status = PostStatus.Rejected;
-
-            await _postsRepository.UpdateAsync(id, post);
-            return RedirectToAction(nameof(Index));
-        }
-
-
         // POST: Posts/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Body,Status")] Post post)
+        [Authorize]
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Body,Status")] PostDto post)
         {
             if (id != post.Id)
             {
@@ -200,26 +155,14 @@ namespace WebUI.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                try
-                {
-                    await _postsRepository.UpdateAsync(id, post);
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (await _postsRepository.GetAsync(post.Id) == null)
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                return View(post);
             }
-            return View(post);
+
+            var command = new UpdatePostCommand { PostId = id, Post = post };
+            await _mediator.Send(command);
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: Posts/Delete/5
@@ -231,7 +174,8 @@ namespace WebUI.Controllers
                 return NotFound();
             }
 
-            var post = await _postsRepository.GetAsync(id.Value);
+            var query = new GetPostDetailsQuery { PostId = id.Value };
+            var post = await _mediator.Send(query);
             if (post == null)
             {
                 return NotFound();
@@ -246,7 +190,7 @@ namespace WebUI.Controllers
         [Authorize(Roles = "Editor")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            await _postsRepository.RemoveAsync(id);
+            await _mediator.Send(new DeletePostCommand { PostId = id });
             return RedirectToAction(nameof(Index));
         }
 

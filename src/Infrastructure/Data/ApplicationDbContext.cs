@@ -1,10 +1,7 @@
 ﻿using Domain;
-using Infrastructure.Extensions;
+using Infrastructure.Data.Configurations;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 
 namespace Infrastructure.Data
 {
@@ -17,7 +14,6 @@ namespace Infrastructure.Data
 
         public ApplicationDbContext()
         {
-
         }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
@@ -26,10 +22,10 @@ namespace Infrastructure.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            //if (!optionsBuilder.IsConfigured)
-            //{
+            if (!optionsBuilder.IsConfigured)
+            {
                 optionsBuilder.UseSqlServer(@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=BlogEngineDB;Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
-            //}
+            }
             base.OnConfiguring(optionsBuilder);
         }
 
@@ -37,10 +33,9 @@ namespace Infrastructure.Data
         {
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
-            modelBuilder.Entity<User>().HasData(
-                new User { Id = 1, Name = "Bob", Username = "writer", Password = "writer".ToSha256(), RoleId = 1 },
-                new User { Id = 2, Name = "Joe", Username = "editor", Password = "editor".ToSha256(), RoleId = 2 }
-                );
+            UserConfiguration.SeedData(modelBuilder.Entity<User>());
+            PostConfiguration.SeedData(modelBuilder.Entity<Post>());
+            CommentConfiguration.SeedData(modelBuilder.Entity<Comment>());
 
             base.OnModelCreating(modelBuilder);
         }

@@ -1,9 +1,7 @@
 ﻿using Domain;
+using Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Infrastructure.Data.Configurations
 {
@@ -16,6 +14,14 @@ namespace Infrastructure.Data.Configurations
                 .IsRequired();
             builder.Property(u => u.Password)
                 .IsRequired();
+        }
+
+        public static void SeedData(EntityTypeBuilder<User> builder)
+        {
+            builder.HasData(
+               new User { Id = 1, Name = "Bob", Username = "writer", Password = "writer".ToSha256(), RoleId = 1 },
+               new User { Id = 2, Name = "Joe", Username = "editor", Password = "editor".ToSha256(), RoleId = 2 }
+               );
         }
     }
 }

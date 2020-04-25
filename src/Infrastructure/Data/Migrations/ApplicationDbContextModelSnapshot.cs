@@ -34,7 +34,7 @@ namespace Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("PostId")
+                    b.Property<int>("PostId")
                         .HasColumnType("int");
 
                     b.Property<int?>("UserId")
@@ -50,6 +50,16 @@ namespace Infrastructure.Data.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Comments");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Content = "Great post!",
+                            CreationDate = new DateTime(2020, 4, 25, 12, 10, 55, 412, DateTimeKind.Local).AddTicks(5009),
+                            PostId = 4,
+                            Username = "Anonymous"
+                        });
                 });
 
             modelBuilder.Entity("Domain.Post", b =>
@@ -85,6 +95,50 @@ namespace Infrastructure.Data.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Posts");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Body = "Draft post body",
+                            Status = "Draft",
+                            Title = "Draft Post Title",
+                            UserId = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Body = "Pending post body",
+                            Status = "Pending",
+                            Title = "Pending Post Title",
+                            UserId = 1
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Body = "Rejected post body",
+                            Status = "Rejected",
+                            Title = "Rejected Post Title",
+                            UserId = 1
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Body = "Approved post body",
+                            PublishDate = new DateTime(2020, 4, 25, 12, 10, 55, 411, DateTimeKind.Local).AddTicks(5804),
+                            Status = "Approved",
+                            Title = "Approved Post Title",
+                            UserId = 1
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Body = "Approved post body 2",
+                            PublishDate = new DateTime(2020, 4, 25, 12, 10, 55, 412, DateTimeKind.Local).AddTicks(731),
+                            Status = "Approved",
+                            Title = "Approved Post Title 2",
+                            UserId = 1
+                        });
                 });
 
             modelBuilder.Entity("Domain.Role", b =>
@@ -167,7 +221,9 @@ namespace Infrastructure.Data.Migrations
                 {
                     b.HasOne("Domain.Post", null)
                         .WithMany("Comments")
-                        .HasForeignKey("PostId");
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Domain.User", "User")
                         .WithMany()
@@ -177,7 +233,7 @@ namespace Infrastructure.Data.Migrations
             modelBuilder.Entity("Domain.Post", b =>
                 {
                     b.HasOne("Domain.User", "User")
-                        .WithMany("Posts")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
